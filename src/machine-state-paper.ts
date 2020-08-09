@@ -20,7 +20,7 @@ export enum MachineStatePaperColor {
  * Extends `DataNode` to add the cell id for getting cells from `joint.dia.Graph`.
  */
 export interface CellDataNode extends DataNode {
-    cid: string | number;
+    cid?: string | number;
 }
 
 /**
