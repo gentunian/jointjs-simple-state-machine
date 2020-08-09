@@ -13,19 +13,23 @@
     "backbone": "^1.4.0",
     "dagre": "^0.8.5",
     "jointjs": "^3.2.0",
-    "jquery": "^3.4.1",
-    "lodash": "^4.17.11"
+    "jquery": "^3.5.1",
+    "lodash": "^4.17.19"
   },
   "devDependencies": {
     "@types/backbone": "^1.4.3",
     "@types/dagre": "^0.7.44",
+    "@types/jasmine": "^3.5.12",
     "@types/jointjs": "^2.0.0",
     "@types/jquery": "^3.5.1",
     "@types/lodash": "^4.14.158",
     "css-loader": "^4.2.0",
     "jasmine": "^3.6.1",
+    "jasmine-spec-reporter": "^5.0.2",
+    "jasmine-ts": "^0.3.0",
     "style-loader": "^1.2.1",
     "ts-loader": "^8.0.2",
+    "ts-node": "^8.10.2",
     "typescript": "^3.9.7",
     "webpack": "^4.44.1",
     "webpack-cli": "^3.3.12"
