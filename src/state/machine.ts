@@ -12,7 +12,7 @@ export enum State {
 export interface DataNode {
     name: string;
     state: State;
-    error: any;
+    error?: any;
 }
 
 /**
@@ -28,8 +28,18 @@ export interface MachineStateData<T extends DataNode> {
     current: number;
 }
 
+export class IllegalStateError extends Error {
+    constructor(invoked: string, expected: string, current: string) {
+        super(`Illegal state: ${invoked} called when machine is not ${expected}. Current state: ${current}`)
+        Object.setPrototypeOf(this, new.target.prototype)
+    }
+}
+
 /**
  * Simplistic observable state machine.
+ * 
+ * Note: machineState is mutable from outside `StateMachine`. This was not avoided on purpouse
+ * because is out of scope of this simple implementation. Future changes may bring inmutability to the project.
  */
 export class StateMachine<T extends DataNode> extends Observable<MachineStateData<T>> {
 
@@ -52,7 +62,7 @@ export class StateMachine<T extends DataNode> extends Observable<MachineStateDat
      */
     initialize(initial: T[]) {
         if (this.machineState.state !== State.Created) {
-            throw Error("Illegal state: initialize() called when this machine was already initialized.");
+            throw new IllegalStateError("initialize()", State.Created, this.machineState.state);
         }
         this.machineState.nodes = initial.map(item => ({ ...item, state: State.Created }));
         this.machineState.current = 0
@@ -69,7 +79,7 @@ export class StateMachine<T extends DataNode> extends Observable<MachineStateDat
      */
     start() {
         if (this.machineState.state !== State.Ready) {
-            throw Error("Illegal state: start() called when state is not Ready.");
+            throw new IllegalStateError("start()", State.Ready, this.machineState.state);
         }
         if (this.machineState.nodes.length === 0) {
             throw Error("Illegal state: start() called with empty machine.");
@@ -93,7 +103,7 @@ export class StateMachine<T extends DataNode> extends Observable<MachineStateDat
      */
     next(error?: any) {
         if (this.machineState.state !== State.Running) {
-            throw Error("Illegal state: next() called with machine not running.");
+            throw new IllegalStateError("next()", State.Running, this.machineState.state);
         }
 
         if (error) {
@@ -122,7 +132,7 @@ export class StateMachine<T extends DataNode> extends Observable<MachineStateDat
      */
     stop(error?: any) {
         if (this.machineState.state !== State.Running) {
-            throw Error("Illegal state: stop() called when state machine is not Running.");
+            throw new IllegalStateError("stop()", State.Running, this.machineState.state);
         }
 
         if (error) {
