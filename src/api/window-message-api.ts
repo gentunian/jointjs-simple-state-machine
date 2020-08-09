@@ -16,9 +16,9 @@ export interface StateMachineMessageData<T> {
 }
 
 export interface StateMachineMessage<T extends DataNode> {
-    id?: number;
+    id: string;
     command: StateMachineMessageCommand;
-    data: StateMachineMessageData<T>;
+    data?: StateMachineMessageData<T>;
 }
 
 export interface MachinesDict<T extends DataNode> {
@@ -30,26 +30,16 @@ export interface MachinesDict<T extends DataNode> {
  */
 export class WindowMessageApi<T extends DataNode> extends MachineApi<T> {
 
-    private api = {
-        create: this.create,
-        initialize: this.initialize,
-        next: this.next,
-        stop: this.stop,
-        start: this.start,
-        destroy: this.destroy,
-    }
-
-    constructor() {
+    constructor(window: Window) {
         super();
         const handleEvent = (event: MessageEvent) => {
             const message = event.data as StateMachineMessage<T>
-            const handler = this.api[message.command]
-            if (handler) {
-                handler.bind(this)(message.id, message.data)
+            if (this[message.command]) {
+                this[message.command](message.id, message.data)
             } else {
                 console.error(`WARN: No handler for command '${message.command}'. `)
             }
         }
-        window.addEventListener("message", handleEvent.bind(this));
+        window.addEventListener("message", handleEvent);
     }
 }

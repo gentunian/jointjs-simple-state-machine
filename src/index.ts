@@ -28,4 +28,4 @@ $container.style.pointerEvents = "none";
 $container.style.position = "absolute";
 $paper.append($container);
 
-new MachineStatePaper(paper, new WindowMessageApi<CellDataNode>());
+new MachineStatePaper(paper, new WindowMessageApi<CellDataNode>(window));
