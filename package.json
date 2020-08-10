@@ -4,7 +4,7 @@
   "description": "Simplistic state machine UI with jointjs.",
   "scripts": {
     "build": "webpack",
-    "test": "jasmine-ts --config=jasmine.json",
+    "test": "karma start --single-run",
     "perpare": "npm run build",
     "prepublishOnly": "npm test",
     "version": "git add -A src",
