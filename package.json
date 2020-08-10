@@ -4,10 +4,14 @@
   "description": "Simplistic state machine UI with jointjs.",
   "scripts": {
     "build": "webpack",
-    "test": "jasmine-ts --config=jasmine.json"
+    "test": "jasmine-ts --config=jasmine.json",
+    "perpare": "npm run build",
+    "prepublishOnly": "npm test",
+    "version": "git add -A src",
+    "postversion": "git push && git push --tags"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "gentunian",
+  "license": "MIT",
   "dependencies": {
     "@dagrejs/graphlib": "^2.1.4",
     "backbone": "^1.4.0",
@@ -37,5 +41,10 @@
     "typescript": "^3.9.7",
     "webpack": "^4.44.1",
     "webpack-cli": "^3.3.12"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gentunian/jointjs-simple-state-machine"
+  },
+  "keywords": ["jointjs"]
 }
