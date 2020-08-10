@@ -1,6 +1,6 @@
 {
   "name": "@gentunian/jointjs-state-machine",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Simplistic state machine UI with jointjs.",
   "scripts": {
     "build": "webpack",
@@ -46,5 +46,7 @@
     "type": "git",
     "url": "git+https://github.com/gentunian/jointjs-simple-state-machine"
   },
-  "keywords": ["jointjs"]
+  "keywords": [
+    "jointjs"
+  ]
 }
