@@ -25,7 +25,7 @@ Import `dist/bundle.js` into the browser and call `createMachineStatePaper()` fu
 </head>
 
 <body>
-    <script>window.createMachineStatePaper(");</script>
+    <script>window.createMachineStatePaper("");</script>
     <script src="bundle.js"></script>
 </body>
 
