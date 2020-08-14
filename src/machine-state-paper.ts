@@ -17,7 +17,7 @@ export interface CellDataNode extends DataNode {
  * Function type receives the full data nodes array and the data nodes that are in error state.
  */
 export interface DoneStrategy<T extends CellDataNode> {
-    local: (machine: MachineStateData<T>) => State;
+    local: (id: string, machine: MachineStateData<T>) => State;
     global: (states: State[]) => State;
 }
 
@@ -25,7 +25,7 @@ export interface DoneStrategy<T extends CellDataNode> {
  * Default done strategy.
  */
 const defaultDoneStrategy: DoneStrategy<CellDataNode> = {
-    local: (machine: MachineStateData<CellDataNode>): State => {
+    local: (id: string, machine: MachineStateData<CellDataNode>): State => {
         if (machine.state === State.Stopped || machine.state === State.Done) {
             return (machine.nodes.filter(n => n.state === State.Error).length > 0) ? State.Error : State.Done;
         } else {
@@ -223,7 +223,7 @@ export class MachineStatePaper<T extends CellDataNode> {
         this.updatePaper(data.nodes);
 
         // gets the local state for machine `id`.
-        this.states[id] = this.doneStrategy.local(data);
+        this.states[id] = this.doneStrategy.local(id, data);
         
         // gets all states for all machines.
         const states = Object.keys(this.states).map(k => this.states[k]);
