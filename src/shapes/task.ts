@@ -109,6 +109,7 @@ class TaskView extends joint.dia.ElementView {
         html.style.height = bbox.height + 'px';
         html.style.left = bbox.x + 'px';
         html.style.top = bbox.y + 'px';
+        this.paper.$el.children(":last-child").css("transform", this.getTransformMatrix());
     }
 
     updateFields() {
@@ -128,6 +129,11 @@ class TaskView extends joint.dia.ElementView {
 
     onRemove() {
         this.removeHTMLMarkup();
+    }
+
+    private getTransformMatrix(): string {
+        const m = this.paper.matrix();
+        return `matrix(${m.a}, ${m.b}, ${m.c}, ${m.d}, ${m.e}, ${m.f})`;
     }
 }
 
