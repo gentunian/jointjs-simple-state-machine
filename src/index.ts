@@ -2,30 +2,46 @@ import './css/custom.css';
 import 'jointjs/dist/joint.core.min.css';
 import * as joint from 'jointjs';
 import { MachineStatePaper, CellDataNode } from './machine-state-paper';
+import { MachineApi } from './api/machine-api';
 import { WindowMessageApi } from './api/window-message-api';
 
-const $paper = document.createElement("div");
-$paper.style.overflowX = "auto";
-$paper.style.overflowY = "auto";
-$paper.style.width = "100%"
-$paper.style.height = "100%"
-document.body.append($paper);
+(<any>window).createMachineStatePaper = (
+    elementId?: string,
+    api?: MachineApi<CellDataNode>,
+    $window: Window = window
+) => {
+    const prepareElement = (id: string, document: Document): HTMLElement => {
+        let element: HTMLElement;
+        if (id) {
+            element = document.getElementById(id);
+        } else {
+            element = document.createElement("div")
+            document.body.append(element);
+        }
+        element.style.overflowX = "auto";
+        element.style.overflowY = "auto";
+        element.style.width = "100%";
+        element.style.height = "100%";
+        return element;
+    }
+    const document = $window.document;
+    const $paper = prepareElement(elementId, document);
+    const paper = new joint.dia.Paper({
+        el: $paper,
+        cellViewNamespace: joint.shapes,
+        model: new joint.dia.Graph({},{ cellNamespace: joint.shapes }),
+        gridSize: 10,
+        drawGrid: false,
+        background: {},
+        height: "100%",
+        width: "100%"
+    });
 
-const paper = new joint.dia.Paper({
-    el: $paper,
-    cellViewNamespace: joint.shapes,
-    model: new joint.dia.Graph({},{ cellNamespace: joint.shapes }),
-    gridSize: 10,
-    drawGrid: false,
-    background: {},
-    interactive: true,
-    height: $paper.clientHeight,
-    width: $paper.clientWidth,
-});
+    const $container = document.createElement("div");
+    $container.style.pointerEvents = "none";
+    $container.style.position = "absolute";
+    $paper.append($container);
 
-const $container = document.createElement("div");
-$container.style.pointerEvents = "none";
-$container.style.position = "absolute";
-$paper.append($container);
+    return new MachineStatePaper(paper, api || new WindowMessageApi<CellDataNode>($window)).api;
+}
 
-new MachineStatePaper(paper, new WindowMessageApi<CellDataNode>(window));
