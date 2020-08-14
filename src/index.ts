@@ -1,13 +1,14 @@
 import './css/custom.css';
 import 'jointjs/dist/joint.core.min.css';
 import * as joint from 'jointjs';
-import { MachineStatePaper, CellDataNode } from './machine-state-paper';
+import { MachineStatePaper, CellDataNode, DoneStrategy } from './machine-state-paper';
 import { MachineApi } from './api/machine-api';
 import { WindowMessageApi } from './api/window-message-api';
 
-(<any>window).createMachineStatePaper = (
+(<any>window).createMachineStatePaper = <T extends CellDataNode>(
     elementId?: string,
-    api?: MachineApi<CellDataNode>,
+    api?: MachineApi<T>,
+    doneStrategy?: DoneStrategy<T>,
     $window: Window = window
 ) => {
     const prepareElement = (id: string, document: Document): HTMLElement => {
@@ -42,6 +43,6 @@ import { WindowMessageApi } from './api/window-message-api';
     $container.style.position = "absolute";
     $paper.append($container);
 
-    return new MachineStatePaper(paper, api || new WindowMessageApi<CellDataNode>($window)).api;
+    return new MachineStatePaper(paper, api || new WindowMessageApi<T>($window), doneStrategy).api;
 }
 
