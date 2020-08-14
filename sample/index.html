@@ -1,0 +1,195 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>Jointjs State Machine Sample</title>
+    <link href="../dist/bundle.js" rel="preload" as="script">
+    <link rel="stylesheet" href="https://unpkg.com/purecss@2.0.3/build/pure-min.css"
+        integrity="sha384-cg6SkqEOCV1NbJoCu11+bm0NvBRc8IYLRGXkmNrqUBfTjmMYwNKPWBTIKyw9mHNJ" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://unpkg.com/purecss@2.0.3/build/grids-responsive-min.css">
+    <script src="https://cdn.jsdelivr.net/npm/vue"></script>
+    <style>
+        * {
+            -webkit-box-sizing: border-box;
+            -moz-box-sizing: border-box;
+            box-sizing: border-box;
+        }
+        h3 {
+            font-weight: 100;
+        }
+        #layout {
+            padding: 0;
+        }
+        .sidebar {
+            background: rgb(61, 79, 93);
+            color: #fff;
+        }
+        .content {
+            padding: 2em 1em 0;
+        }
+        @media (min-width: 48em) {
+            .content {
+                padding: 2em 3em 0;
+                margin-left: 25%;
+            }
+
+            .header {
+                margin: 80% 2em 0;
+                text-align: right;
+            }
+
+            .sidebar {
+                position: fixed;
+                top: 0;
+                bottom: 0;
+            }
+
+            .footer {
+                text-align: center;
+            }
+        }
+        form {
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+        ul.menu {
+            padding: 0;
+            list-style: none;
+            background-color: antiquewhite;
+            border: 1px solid gray;
+        }
+        ul.menu li>a {
+            text-decoration: none;
+        }
+        .menu li:hover>ul {
+            display: block;
+            position: absolute;
+            list-style: none;
+            left: 100%;
+            top: 0;
+        }
+        .menu li>ul {
+            display: none;
+        }
+        .menu li:hover {
+            cursor: pointer;
+            background-color: lightskyblue;
+        }
+        .menu li {
+            position: relative;
+            padding: 10px;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="layout" style="display: flex;">
+        <div class="sidebar pure-u-1 pure-u-md-1-5">
+            <form class="pure-form pure-form-stacked">
+                <fieldset>
+                    <input v-model="machine" type="text" placeholder="Machine Name" class="pure-u-1" autofocus
+                        tabindex="0" />
+                    <input v-model="nodes" type="text" placeholder="CSV for node names..." class="pure-u-1" />
+                    <button v-on:click="createMachine" v-bind:disabled="machine.length === 0"
+                        class="pure-button pure-button-primary">Create</button>
+                </fieldset>
+            </form>
+            <div style="z-index: 9;" v-if="machines.length > 0">
+                <ul class="menu">
+                    <li v-for="m in machines" :key="m.machineId">
+                        <a href="#">{{m.machineId}} &#9656;</a>
+                        <ul class="menu">
+                            <li>
+                                <a href="#" v-on:click="startMachine(m.machineId)">Start</a>
+                            </li>
+                            <li>
+                                <a href="#">Next &#9656;</a>
+                                <ul class="menu">
+                                    <li v-on:click="advanceMachine(m.machineId)">
+                                        <a href="#">Ok</a>
+                                    </li>
+                                    <li v-on:click="advanceMachine(m.machineId, true)">
+                                        <a href="#">Error</a>
+                                    </li>
+                                </ul>
+                            </li>
+                            <li>
+                                <a href="#">Stop &#9656;</a>
+                                <ul class="menu">
+                                    <li v-on:click="stopMachine(m.machineId)">
+                                        <a href="#">Ok</a>
+                                    </li>
+                                    <li v-on:click="stopMachine(m.machineId, true)">
+                                        <a href="#">Error</a>
+                                    </li>
+                                </ul>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        <div class="content" style="z-index: -10;">
+            <div id="paper" style="height: 600px;"></div>
+        </div>
+    </div>
+    <script src="../dist/bundle.js"></script>
+    <script>
+
+        function buildMessage(id, command, data) {
+            const message = { id, command, data };
+            return message;
+        }
+
+        var layout = new Vue({
+            el: "#layout",
+            data: {
+                machine: "",
+                nodes: "",
+                machines: [],
+                machineSelected: null
+            },
+            methods: {
+                createMachine: function (event) {
+                    window.postMessage(buildMessage(this.machine, "create"))
+                    const nodes = this.nodes.split(",").map(i => ({ name: i }));
+                    window.postMessage(buildMessage(this.machine, "initialize", { nodes }));
+                    this.machine = this.nodes = "";
+                    event.preventDefault();
+                    return false;
+                },
+                startMachine: function (machineId) {
+                    window.postMessage(buildMessage(machineId, "start"))
+                    event.preventDefault();
+                    return false;
+                },
+                advanceMachine: function (machineId, error) {
+                    const data = (error !== undefined) ? { error } : undefined;
+                    window.postMessage(buildMessage(machineId, "next", data))
+                    event.preventDefault();
+                    return false;
+                },
+                stopMachine: function (machineId, error) {
+                    const data = (error !== undefined) ? { error } : undefined;
+                    window.postMessage(buildMessage(machineId, "stop", data))
+                    event.preventDefault();
+                    return false;
+                }
+            }
+        })
+
+        const api = window.createMachineStatePaper("paper");
+        api.subscribe(data => {
+            console.log(data);
+            if (data.event === "create") {
+                layout.$data.machines.push({ machineId: data.machineId, machine: data.machine })
+            }
+        })
+    </script>
+</body>
+
+</html>
