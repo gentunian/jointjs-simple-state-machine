@@ -137,6 +137,55 @@ In this case, the API is extended to create a transport client based on messagin
 
 So, if you want to connect your machine API to webworkers, events, reactive data or another kind of source, you may extend `MachineApi` with your needs.
 
+# State Machine Paper
+
+The state machine paper is an orchestrator of machines, API, the drawing and a done strategy. It glues all the thing together to show a `StateMachine` that is managed by a `MachineApi` within a `joint.dia.Paper` inside the HTML.
+
+It can be customized with a custom `MachineApi` and a custom done strategy.
+
+State machine paper shows the machines states as a whole and has it's current internal global state based on machines local state that is calculated by a done strategy.
+
+## Done strategy
+
+Done strategy is no more than a fancy name for a custom object that has 2 callbacks: `local` and `global`.
+
+### Local done strategy
+`local` callback is called when a machine is _done_, i.e, its state is `State.Done` or `State.Stopped`. It's responsible of returning the _local_ status for the correspondent machine based on the current states of its nodes. This is because a machine has no error state.
+
+A machine only traverses through nodes and it may be ready, running, stopped or done. Is up to this _algorithm_ to calculate the desired _local_ state of the machine based on the final state of each node. For example, a machine may be considered to be in error if all of its nodes are in `State.Error` when the machine has either stopped or done. Or, a machine may be considered to be in error if at least 1 node is in error when the machine has finished traversing all nodes. Or even more, the machine with id `Windows` is always on error state. This is called _local done strategy_ in this project.
+
+By default, the local done strategy considers that if there are 1 node in `State.Error` then the machine is in error:
+
+```typescript
+ local: (id: string, machine: MachineStateData<CellDataNode>): State => {
+    if (machine.state === State.Stopped || machine.state === State.Done) {
+        return (machine.nodes.filter(n => n.state === State.Error).length > 0) ? State.Error : State.Done;
+    } else {
+        return State.Running
+    }
+}
+```
+
+### Global done strategy
+
+This sums up all the states and returns the global outcome of each state machine. Every time a machine goes to done/stopped, its local done strategy is invoked and after that, the global done strategy is calculated. Following the same principle as above, a global done strategy may be considered an error if each local machine states are in error.
+
+This callback receives the current local states array, and the default gloabl done strategy is:
+
+```typescript
+global: (states: State[]): State => {
+    return states.reduce((p, c) => (p === State.Running || p === State.Error && c !== State.Running) ? p : c, State.Done);
+}
+```
+
+That says that if there are running machines then keep it that way, that is, the global state is `State.Running`. If all machines has finished and there is at least 1 error, then the global state is `State.Error`. If all machines has finished and no error states, then the global state is `State.Done`.
+
 # Sample
 
 An ugly, quick, vague and poorly demonstrative [sample](./sample/index.html) is included in a single HTML file.
+
+### Simple machine
+![](./sample/simple.gif)
+
+### Multi machine
+![](./sample/multi.gif)
