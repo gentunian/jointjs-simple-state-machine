@@ -5,16 +5,6 @@ import * as graphlib from "@dagrejs/graphlib";
 import './shapes/task';
 import { DataNode, MachineStateData, State } from "./state/machine";
 import { MachineApiEventName, MachineApi } from "./api/machine-api";
-import { join } from "lodash";
-
-/**
- * Colors for the paper state machine to show when machines are done.
- */
-export enum MachineStatePaperColor {
-    Succees = "#10a324",
-    Error = "#ff4365",
-    Running = "lightblue",
-}
 
 /**
  * Extends `DataNode` to add the cell id for getting cells from `joint.dia.Graph`.
@@ -27,21 +17,24 @@ export interface CellDataNode extends DataNode {
  * Function type receives the full data nodes array and the data nodes that are in error state.
  */
 export interface DoneStrategy<T extends CellDataNode> {
-    (data: T[], errorNodes: T[]): boolean;
+    local: (machine: MachineStateData<T>) => State;
+    global: (states: State[]) => State;
 }
 
 /**
- * Default done strategy that returns true when no data node is in error.
- * 
- * Done strategy callback is called when machines enters into `State.Stopped` or `State.Done` states.
- * It should return true whether or not it's considered a success or an error.
- * 
- * For example, a machine may be considered in error when at least 1 data node is in error state.
- * 
- * @param errorNodes data nodes array in error state.
+ * Default done strategy.
  */
-const defaultDoneStrategy: DoneStrategy<CellDataNode> = (data: CellDataNode[], errorNodes: CellDataNode[]) => {
-    return errorNodes.length === 0;
+const defaultDoneStrategy: DoneStrategy<CellDataNode> = {
+    local: (machine: MachineStateData<CellDataNode>): State => {
+        if (machine.state === State.Stopped || machine.state === State.Done) {
+            return (machine.nodes.filter(n => n.state === State.Error).length > 0) ? State.Error : State.Done;
+        } else {
+            return State.Running
+        }
+    },
+    global: (states: State[]): State => {
+        return states.reduce((p, c) => (p === State.Running || p === State.Error && c !== State.Running) ? p : c, State.Done);
+    }
 }
 
 enum ElementAttrs {
@@ -60,6 +53,12 @@ enum LinkConnector {
     Rounded = "rounded",
 }
 
+interface MachineStats {
+    errors: number;
+    ok: number;
+    nodes: number;
+}
+
 // defaults directions for route algorithm.
 const routeDir = ["top", "right", "bottom", "left"];
 
@@ -76,21 +75,34 @@ export class MachineStatePaper<T extends CellDataNode> {
     // end circle on paper shows final point.
     private endShape: joint.dia.Element;
 
-    private machines: State[] = [];
+    // global state for each machine by id. Not to be confused with the state of the machine.
+    // This is the state from the paper point of view based on configured strategies.
+    private states: { [key in string]: State } = {};
+
+    // Colors for the paper state machine to show when machines are done.
+    private machineStatePaperColor: { [key in State]: string } = {
+        [State.Done]: "#10a324",
+        [State.Error]: "#ff4365",
+        [State.Running]: "lightblue",
+        [State.Running]: "lightblue",
+        [State.Stopped]: "#10a324",
+        [State.Created]: "lightblue",
+        [State.Ready]: "lightblue",
+    };
 
     constructor(
         private paper: joint.dia.Paper,
-        api: MachineApi<T>,
+        public readonly api: MachineApi<T>,
         private doneStrategy: DoneStrategy<T> = defaultDoneStrategy,
     ) {
         this.startShape = new joint.shapes.standard.Circle();
         this.startShape.size(20, 20);
-        this.startShape.attr(ElementAttrs.BodyFill, MachineStatePaperColor.Running);
+        this.startShape.attr(ElementAttrs.BodyFill, this.machineStatePaperColor[State.Running]);
         this.endShape = this.startShape.clone() as joint.dia.Element;
         api.subscribe(data => {
             switch (data.event) {
                 case MachineApiEventName.Create:
-                    data.machine.subscribe(this.handleMachineStateData.bind(this))
+                    data.machine.subscribe(mData => this.handleMachineStateData(data.machineId, mData));
                     break;
             }
         });
@@ -146,6 +158,7 @@ export class MachineStatePaper<T extends CellDataNode> {
             marginX: 30,
             marginY: 30,
         });
+        this.paper.fitToContent({ padding: 10 });
     }
 
     /**
@@ -153,13 +166,12 @@ export class MachineStatePaper<T extends CellDataNode> {
      * 
      * @param nodes data nodes from a state machine that was initialized.
      */
-    initialize(nodes: T[]) {
-        // only add start and end shape is this is the first machine to be added.
-        if (this.machines.length === 0) {
+    initialize(id: string, data: MachineStateData<T>) {
+        if (Object.keys(this.states).length === 0) {
             this.paper.model.addCell(this.startShape);
             this.paper.model.addCell(this.endShape);
         }
-        const shapesCells = nodes.map(this.nodeToShape);
+        const shapesCells = data.nodes.map(this.nodeToShape);
         const linksCells = shapesCells
             .map((shape, index) => {
                 if (index > 0) {
@@ -174,6 +186,8 @@ export class MachineStatePaper<T extends CellDataNode> {
         this.paper.model.addCells(shapesCells);
         this.paper.model.addCells(linksCells);
         this.layout();
+        // global state for machine id `id` based on this paper.
+        this.states[id] = State.Running;
     }
 
     /**
@@ -181,40 +195,59 @@ export class MachineStatePaper<T extends CellDataNode> {
      * 
      * @param nodes data nodes from the machine that updated its status.
      */
-    update(nodes: T[]) {
+    updatePaper(nodes: T[]) {
         nodes.forEach(node => {
             const cell = this.paper.model.getCell(node.cid)
-            cell.attr(ElementAttrs.FieldsState, node.state)
+            if (cell) {
+                cell.attr(ElementAttrs.FieldsState, node.state)
+            }
         })
     }
 
     /**
-     * Called when a machine was stopped or done.
+     * Returns a color based on the state parameter.
      * 
-     * @param data machine state data.
+     * @param state to retrieve a color from.
      */
-    machineDone(data: MachineStateData<T>) {
+    private getColorFromState(state: State): string {
+        return this.machineStatePaperColor[state];
+    }
+
+    /**
+     * Called when a machine was stopped, done, or in error.
+     * 
+     * @param states the states for each machine.
+     */
+    machineDone(id: string, data: MachineStateData<T>) {
         // updates data nodes status.
-        this.update(data.nodes);
-        const errorNodes = data.nodes.filter(n => n.state === State.Error)
-        // gets the done strategy output passing nodes and nodes with errors.
-        const color = this.doneStrategy(data.nodes, errorNodes) ? MachineStatePaperColor.Succees : MachineStatePaperColor.Error;
+        this.updatePaper(data.nodes);
+
+        // gets the local state for machine `id`.
+        this.states[id] = this.doneStrategy.local(data);
+        
+        // gets all states for all machines.
+        const states = Object.keys(this.states).map(k => this.states[k]);
+
+        // gets the global state.
+        const globalState = this.doneStrategy.global(states)
+        const color = this.getColorFromState(globalState);
+
         // sets endShape fill color based on the output of `doneStrategy`.        
         this.paper.model.getCell(this.endShape.cid).attr(ElementAttrs.BodyFill, color);
     }
 
-    handleMachineStateData(data: MachineStateData<T>) {
+    handleMachineStateData(machineId: string, data: MachineStateData<T>) {
         switch (data.state) {
-            case State.Done:
-                this.machineDone(data);
-                break;
             case State.Ready:
-                this.initialize(data.nodes);
+                this.initialize(machineId, data);
                 break;
+            case State.Done:
             case State.Stopped:
-                this.machineDone(data);
+            case State.Error:
+                this.machineDone(machineId, data);
+                break;
             default:
-                this.update(data.nodes);
+                this.updatePaper(data.nodes);
                 break;
         }
     }
