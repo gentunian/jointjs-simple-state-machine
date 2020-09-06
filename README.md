@@ -4,7 +4,7 @@ Simple package that handles simplistic states machines as a state machine flow u
 
 # Installation
 
-`npm install --save --scope @gentunian --registry https://npm.pkg.github.com @gentunian/jointjs-state-machine`
+`npm install --save --scope @gentunian --registry https://npm.pkg.github.com @gentunian/jointjs-simple-state-machine`
 
 # How to use
 
